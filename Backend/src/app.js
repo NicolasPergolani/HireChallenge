@@ -1,4 +1,6 @@
 const express = require('express');
+const path = require('path');
+const fs = require('fs');
 const mongoose = require('mongoose');
 const noteRoutes = require('./routes/note.routes');
 const authRoutes = require('./routes/auth.routes');
@@ -22,6 +24,12 @@ app.use((req, res, next) => {
   next();
 });
 
+// Static frontend (built) for single-service deployments
+const frontendDistPath = path.join(__dirname, '..', '..', 'Frontend', 'dist');
+if (fs.existsSync(frontendDistPath)) {
+  app.use(express.static(frontendDistPath));
+}
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/notes', noteRoutes);
@@ -34,8 +42,16 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// 404 handler
+// 404 handler (SPA fallback when frontend is built)
 app.use((req, res) => {
+  if (
+    fs.existsSync(frontendDistPath) &&
+    req.method === 'GET' &&
+    !req.path.startsWith('/api')
+  ) {
+    return res.sendFile(path.join(frontendDistPath, 'index.html'));
+  }
+
   res.status(404).json({
     success: false,
     error: 'Route not found',
